@@ -202,10 +202,10 @@ async function generateTypes({
 
           if (referenceMatch) {
             const innerType = referenceMatch[1];
-            return `SanityKeyedReference<${innerType}>`;
+            return innerType;
           }
 
-          return `SanityKeyed<${i}>`;
+          return i;
         })
         .join(' | ');
       return `Array<${union}>`;
@@ -222,47 +222,14 @@ async function generateTypes({
     if (intrinsic.type === 'geopoint') {
       return 'SanityGeoPoint';
     }
-    if (intrinsic.type === 'image' || intrinsic.type === 'file') {
-      const lastParent = parents[parents.length - 1] as Parent | undefined;
-
-      // if the last parent has fields, then the resulting type won't use it's
-      // name as the `_type`
-      const lastParentHasFields =
-        lastParent?.node.type &&
-        ['object', 'image', 'file'].includes(lastParent.node.type);
-      const typeName = lastParentHasFields
-        ? intrinsic.type
-        : intrinsic.name || intrinsic.type;
-
-      const typeClause = `_type: '${typeName}'; `;
-      const assetClause = `asset: SanityReference<${
-        intrinsic.type === 'image'
-          ? 'SanityImageAsset'
-          : // TODO: add types for non-image assets
-            'any'
-      }>;`;
-      const imageSpecificClause =
-        intrinsic.type === 'image'
-          ? `
-        crop?: SanityImageCrop;
-        hotspot?: SanityImageHotspot;
-      `
-          : '';
-
-      const fields = intrinsic?.fields || [];
-
-      return `{ ${typeClause} ${assetClause} ${imageSpecificClause} ${fields
-        .map((field) =>
-          convertField(field, [
-            ...parents,
-            {
-              node: intrinsic,
-              path: intrinsic.name || `(anonymous ${intrinsic.type})`,
-            },
-          ])
-        )
-        .filter(Boolean)
-        .join('\n')} }`;
+    if (intrinsic.type === 'image' ) {
+      return 'SanityImageAssetDocument';
+    }
+    if(intrinsic.type === 'file'){
+      return `{
+  asset: {
+    url: string;
+  }}`
     }
     if (intrinsic.type === 'object') {
       const typeClause = intrinsic.name ? `_type: '${intrinsic.name}';` : '';
@@ -298,7 +265,7 @@ async function generateTypes({
       // Note: we want the union to be wrapped by one Reference<T> so when
       // unwrapped the union can be further discriminated using the `_type`
       // of each individual reference type
-      return `SanityReference<${union}>`;
+      return union;
     }
 
     if (intrinsic.type === 'boolean') {
@@ -402,43 +369,45 @@ async function generateTypes({
 
   const typeStrings = [
     `
-      import type {
-        SanityReference,
-        SanityKeyedReference,
-        SanityAsset,
-        SanityImage,
-        SanityFile,
-        SanityGeoPoint,
-        SanityBlock,
-        SanityDocument,
-        SanityImageCrop,
-        SanityImageHotspot,
-        SanityKeyed,
-        SanityImageAsset,
-        SanityImageMetadata,
-        SanityImageDimensions,
-        SanityImagePalette,
-        SanityImagePaletteSwatch,
-      } from 'sanity-codegen';
+    import type {
+      SanityReference,
+      SanityKeyedReference,
+      SanityAsset,
+      SanityImage,
+      SanityFile,
+      SanityGeoPoint,
+      SanityBlock,
+      SanityDocument,
+      SanityImageCrop,
+      SanityImageHotspot,
+      SanityKeyed,
+      SanityImageAsset,
+      SanityImageMetadata,
+      SanityImageDimensions,
+      SanityImagePalette,
+      SanityImagePaletteSwatch,
+    } from 'sanity-codegen';
 
-      export type {
-        SanityReference,
-        SanityKeyedReference,
-        SanityAsset,
-        SanityImage,
-        SanityFile,
-        SanityGeoPoint,
-        SanityBlock,
-        SanityDocument,
-        SanityImageCrop,
-        SanityImageHotspot,
-        SanityKeyed,
-        SanityImageAsset,
-        SanityImageMetadata,
-        SanityImageDimensions,
-        SanityImagePalette,
-        SanityImagePaletteSwatch,
-      };
+    import { SanityImageAssetDocument } from "@sanity/client";
+
+    export type {
+      SanityReference,
+      SanityKeyedReference,
+      SanityAsset,
+      SanityImage,
+      SanityFile,
+      SanityGeoPoint,
+      SanityBlock,
+      SanityDocument,
+      SanityImageCrop,
+      SanityImageHotspot,
+      SanityKeyed,
+      SanityImageAsset,
+      SanityImageMetadata,
+      SanityImageDimensions,
+      SanityImagePalette,
+      SanityImagePaletteSwatch,
+    };
   `,
     ...types
       .filter((t): t is DocumentType => t.type === 'document')
